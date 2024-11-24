@@ -20,6 +20,8 @@ public class BinarySearch {
         System.out.println(res1);
         int res2 = Arrays.binarySearch(ar, 0, ar.length, 3);
         System.out.println(res2);
+
+        
     }
 
     /**
