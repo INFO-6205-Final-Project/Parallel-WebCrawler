@@ -1,4 +1,4 @@
-package crawler.parallel;
+package webcrawler.parallel;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
