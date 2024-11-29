@@ -7,44 +7,92 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class ParallelCrawler {
+import webcrawler.model.Node;
+import webcrawler.model.Edge;
+import webcrawler.service.GraphService;
+import webcrawler.util.HttpUtils;
+
+import java.net.URL;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+
+/**
+ * 单层并行爬虫逻辑，负责并行抓取和保存任务。
+ * 每个并行任务负责抓取一个 URL 并保存相关数据。
+ */
+public class ParallelCrawlerSingle {
 
     private final CrawlerService crawlerService;
     private final Queue<String> urlQueue = new ConcurrentLinkedQueue<>();
 
-    public ParallelCrawler(CrawlerService crawlerService) {
+    // 线程池管理器
+    private final ThreadPoolManager threadPoolManager;
+    private final ExecutorService executor;
+
+    /**
+     * 构造函数，初始化并行爬虫。
+     *
+     * @param crawlerService 爬虫服务实例
+     * @param threads        线程池大小
+     */
+    public ParallelCrawlerSingle(CrawlerService crawlerService, int threads) {
         this.crawlerService = crawlerService;
+        this.threadPoolManager = ThreadPoolManager.getInstance(threads);
+        this.executor = threadPoolManager.getExecutor();
+    }
+
+    /**
+     * 新的构造函数，使用默认线程池大小（例如，10）。
+     *
+     * @param crawlerService 爬虫服务实例
+     */
+    public ParallelCrawlerSingle(CrawlerService crawlerService) {
+        this(crawlerService, 10); // 默认线程池大小为10
     }
 
     /**
      * 并行爬取 URL
+     *
      * @param startUrls 起始 URL 列表
      */
     public void crawlInParallel(List<String> startUrls) {
         urlQueue.addAll(startUrls);
         List<CompletableFuture<Void>> tasks = new ArrayList<>();
 
-        // 并行处理队列中的任务
+        // 提交抓取和保存任务
         while (!urlQueue.isEmpty()) {
             String currentUrl = urlQueue.poll();
             if (currentUrl != null) {
-                tasks.add(CompletableFuture.runAsync(() -> processUrl(currentUrl)));
+                CompletableFuture<Void> task = CompletableFuture.runAsync(() -> processCrawlAndSave(currentUrl), executor);
+                tasks.add(task);
             }
         }
 
         // 等待所有任务完成
         CompletableFuture.allOf(tasks.toArray(new CompletableFuture[0])).join();
+
+        // 关闭线程池
+        threadPoolManager.shutdown();
     }
 
     /**
-     * run the crawler job as an atomic operation
-     * @param url  URL
+     * 抓取并保存单个 URL 的数据
+     *
+     * @param url 要爬取的 URL
      */
-    private void processUrl(String url) {
-        // use crawlerService
+    private void processCrawlAndSave(String url) {
+        // 抓取 URL，获取新发现的 URL 集合
         Set<String> newUrls = crawlerService.crawl(url);
 
-        // add new url to Queue
+        // 保存节点和边
+        crawlerService.saveData(url, newUrls);
+
+        // 将新发现的 URL 添加到队列
         urlQueue.addAll(newUrls);
     }
 }
