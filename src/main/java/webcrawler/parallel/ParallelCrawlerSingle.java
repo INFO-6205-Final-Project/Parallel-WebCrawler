@@ -1,11 +1,14 @@
 package webcrawler.parallel;
 
-//<<<<<<< HEAD
+//<<<<<<< HEADgit
 import webcrawler.service.CrawlerService;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import webcrawler.model.Node;
 import webcrawler.model.Edge;
@@ -21,16 +24,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.*;
+import java.util.Comparator;
+import java.util.ArrayList;
+
 /**
- * 单层并行爬虫逻辑，负责并行抓取和保存任务。
- * 每个并行任务负责抓取一个 URL 并保存相关数据。
+ * 广度优先并行爬虫逻辑，使用优先级队列和双队列管理层级。
  */
 public class ParallelCrawlerSingle {
-
+    private static final Logger logger = LoggerFactory.getLogger(ParallelCrawlerSingle.class);
     private final CrawlerService crawlerService;
-    private final Queue<String> urlQueue = new ConcurrentLinkedQueue<>();
-
-    // 线程池管理器
+    private final PriorityBlockingQueue<URLWithPriority> urlQueue;
     private final ThreadPoolManager threadPoolManager;
     private final ExecutorService executor;
 
@@ -42,12 +48,14 @@ public class ParallelCrawlerSingle {
      */
     public ParallelCrawlerSingle(CrawlerService crawlerService, int threads) {
         this.crawlerService = crawlerService;
+        // 定义优先级队列，优先级高的URL先被处理
+        this.urlQueue = new PriorityBlockingQueue<>(100, Comparator.comparingInt(URLWithPriority::getPriority).reversed());
         this.threadPoolManager = ThreadPoolManager.getInstance(threads);
         this.executor = threadPoolManager.getExecutor();
     }
 
     /**
-     * 新的构造函数，使用默认线程池大小（例如，10）。
+     * 新的构造函数，使用默认线程池大小
      *
      * @param crawlerService 爬虫服务实例
      */
@@ -56,44 +64,114 @@ public class ParallelCrawlerSingle {
     }
 
     /**
-     * 并行爬取 URL
+     * 并行广度优先爬取 URL
      *
      * @param startUrls 起始 URL 列表
      */
     public void crawlInParallel(List<String> startUrls) {
-        urlQueue.addAll(startUrls);
-        List<CompletableFuture<Void>> tasks = new ArrayList<>();
+        // 初始化URL队列
+        for (String url : startUrls) {
+            urlQueue.add(new URLWithPriority(url, computePriority(url)));
+        }
 
-        // 提交抓取和保存任务
+        int depth = 0;
+
         while (!urlQueue.isEmpty()) {
-            String currentUrl = urlQueue.poll();
-            if (currentUrl != null) {
-                CompletableFuture<Void> task = CompletableFuture.runAsync(() -> processCrawlAndSave(currentUrl), executor);
-                tasks.add(task);
+            depth++;
+            logger.info("Crawling depth: {}", depth);
+            List<CompletableFuture<Void>> tasks = new ArrayList<>();
+            int currentLevelSize = urlQueue.size();
+
+            // 使用CountDownLatch等待当前层所有任务完成
+            CountDownLatch latch = new CountDownLatch(currentLevelSize);
+
+            for (int i = 0; i < currentLevelSize; i++) {
+                URLWithPriority urlWithPriority = urlQueue.poll();
+                if (urlWithPriority != null) {
+                    CompletableFuture<Void> task = CompletableFuture.runAsync(() -> {
+                        try {
+                            String currentUrl = urlWithPriority.getUrl();
+                            Set<String> newUrls = crawlerService.crawl(currentUrl);
+                            crawlerService.saveData(currentUrl, newUrls);
+                            for (String newUrl : newUrls) {
+                                if (isValid(newUrl)) {
+                                    urlQueue.add(new URLWithPriority(newUrl, computePriority(newUrl)));
+                                }
+                            }
+                        } catch (Exception e) {
+                            logger.error("Error processing URL: {}", urlWithPriority.getUrl(), e);
+                        } finally {
+                            latch.countDown();
+                        }
+                    }, executor);
+                    tasks.add(task);
+                }
+            }
+
+            try {
+                latch.await(); // 等待当前层所有任务完成
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.error("Crawling interrupted: {}", e.getMessage());
+                break;
             }
         }
 
-        // 等待所有任务完成
-        CompletableFuture.allOf(tasks.toArray(new CompletableFuture[0])).join();
-
         // 关闭线程池
         threadPoolManager.shutdown();
+        logger.info("Crawling completed.");
     }
 
     /**
-     * 抓取并保存单个 URL 的数据
+     * 定义启发式优先级计算方法
      *
-     * @param url 要爬取的 URL
+     * @param url 目标URL
+     * @return 优先级值（数值越高，优先级越高）
      */
-    private void processCrawlAndSave(String url) {
-        // 抓取 URL，获取新发现的 URL 集合
-        Set<String> newUrls = crawlerService.crawl(url);
+    private int computePriority(String url) {
+        // 示例启发式方法：
+        // 1. 包含"important"的URL优先级更高
+        // 2. 不处理暗网（包含"darkweb"的URL）
+        if (url.contains("important")) {
+            return 10;
+        } else if (url.contains("darkweb")) {
+            return -1; // -1表示不加入队列
+        } else {
+            return 1;
+        }
+    }
 
-        // 保存节点和边
-        crawlerService.saveData(url, newUrls);
+    /**
+     * 检查URL是否有效（根据启发式规则）
+     *
+     * @param url 目标URL
+     * @return 是否有效
+     */
+    private boolean isValid(String url) {
+        // 忽略启发式计算中被标记为不处理的URL
+        int priority = computePriority(url);
+        return priority > 0;
+    }
 
-        // 将新发现的 URL 添加到队列
-        urlQueue.addAll(newUrls);
+    /**
+     * 用于封装URL和优先级
+     */
+    private static class URLWithPriority {
+        private final String url;
+        private final int priority;
+
+        public URLWithPriority(String url, int priority) {
+            this.url = url;
+            this.priority = priority;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public int getPriority() {
+            return priority;
+        }
     }
 }
 //=======

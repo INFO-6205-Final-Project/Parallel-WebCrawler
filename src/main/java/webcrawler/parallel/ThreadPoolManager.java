@@ -1,37 +1,32 @@
 package webcrawler.parallel;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 线程池管理器，负责管理爬虫系统中使用的线程池。
- * 采用单例模式，确保全局只有一个实例。
- */
 public class ThreadPoolManager {
-
-    // 单例实例
+    private static final Logger logger = LoggerFactory.getLogger(ThreadPoolManager.class);
     private static ThreadPoolManager instance;
-
-    // 单个线程池
-    private final ExecutorService executor;
+    private final ExecutorService executorService;
 
     /**
-     * 私有构造函数，防止外部实例化。
+     * 私有构造函数，初始化线程池。
      *
      * @param threads 线程池大小
      */
     private ThreadPoolManager(int threads) {
-        this.executor = Executors.newFixedThreadPool(threads);
+        this.executorService = Executors.newFixedThreadPool(threads);
+        logger.info("ThreadPoolManager initialized with {} threads.", threads);
     }
 
     /**
-     * 获取单例实例。
-     * 如果实例尚未创建，则初始化一个新的实例。
+     * 获取 `ThreadPoolManager` 实例（单例）。
      *
      * @param threads 线程池大小
-     * @return ThreadPoolManager 实例
+     * @return `ThreadPoolManager` 实例
      */
     public static synchronized ThreadPoolManager getInstance(int threads) {
         if (instance == null) {
@@ -41,40 +36,30 @@ public class ThreadPoolManager {
     }
 
     /**
-     * 获取线程池。
+     * 获取线程池执行器。
      *
-     * @return executor
+     * @return `ExecutorService` 实例
      */
     public ExecutorService getExecutor() {
-        return executor;
+        return executorService;
     }
 
     /**
-     * 优雅关闭线程池，等待所有任务完成或超时后强制关闭。
+     * 关闭线程池，等待所有任务完成。
      */
     public void shutdown() {
-        shutdownExecutor(executor, "Executor");
-    }
-
-    /**
-     * 优雅关闭指定的线程池。
-     *
-     * @param executor 要关闭的 ExecutorService
-     * @param name     线程池的名称，用于日志记录
-     */
-    private void shutdownExecutor(ExecutorService executor, String name) {
-        executor.shutdown(); // 禁止新任务提交
+        logger.info("Shutting down ThreadPoolManager...");
+        executorService.shutdown();
         try {
-            // 等待所有任务完成或超时
-            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
-                executor.shutdownNow(); // 强制关闭
-                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
-                    System.err.println(name + " did not terminate");
-                }
+            if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                logger.warn("Executor did not terminate in the specified time.");
+                executorService.shutdownNow();
             }
-        } catch (InterruptedException ie) {
-            executor.shutdownNow(); // 强制关闭
-            Thread.currentThread().interrupt(); // 重置中断状态
+            logger.info("ThreadPoolManager shut down successfully.");
+        } catch (InterruptedException e) {
+            logger.error("Shutdown interrupted: {}", e.getMessage());
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 }
