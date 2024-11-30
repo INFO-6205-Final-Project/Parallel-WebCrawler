@@ -1,13 +1,10 @@
 package webcrawler.repository;
 
-import org.neo4j.driver.Driver;
-import org.neo4j.driver.GraphDatabase;
-import org.neo4j.driver.AuthTokens;
-import org.neo4j.driver.Session;
-import org.neo4j.driver.Transaction;
-import org.neo4j.driver.Values;
+import org.neo4j.driver.*;
 import webcrawler.model.Edge;
 import webcrawler.model.Node;
+
+import java.util.List;
 
 
 public class GraphRepository {
@@ -27,30 +24,47 @@ public class GraphRepository {
     // 添加节点
     public void addNode(Node node) {
         try (Session session = driver.session()) {
-            session.writeTransaction(tx -> tx.run(
-                    "MERGE (n:Page {id: $id}) " +
-                            "SET n.title = $title, n.crawlTime = $crawlTime",
-                    Values.parameters(
-                            "id", node.getId())
-            ));
+            session.writeTransaction(tx -> {
+                Result result = tx.run(
+                        "MERGE (n:Page {id: $id}) " +
+                                "SET n.title = $title, n.crawlTime = $crawlTime",
+                        Values.parameters(
+                                "id", node.getId(),
+                                "title", node.getTitle(),
+                                "crawlTime", node.getCrawlTime()
+                        )
+                );
+                // 完全消费 Result
+                result.consume();
+                return null;
+            });
         }
     }
 
-    // 添加关系
+
+
+    // 添加
     public void addEdge(Edge edge) {
         try (Session session = driver.session()) {
-            session.writeTransaction(tx -> tx.run(
-                    "MATCH (a:Page {id: $from}), (b:Page {id: $to}) " +
-                            "MERGE (a)-[r:LINKS_TO]->(b) " +
-                            "SET r.type = $type",
-                    Values.parameters(
-                            "from", edge.getFrom(),
-                            "to", edge.getTo(),
-                            "type", edge.getRelationshipType()
-                    )
-            ));
+            session.writeTransaction(tx -> {
+                Result result = tx.run(
+                        "MERGE (a:Page {id: $from}) " +
+                                "MERGE (b:Page {id: $to}) " +
+                                "MERGE (a)-[r:RELATES_TO]->(b) " +
+                                "SET r.type = $type",
+                        Values.parameters(
+                                "from", edge.getFrom(),
+                                "to", edge.getTo(),
+                                "type", edge.getRelationshipType()
+                        )
+                );
+                // 确保消费 Result
+                result.consume();
+                return null;
+            });
         }
     }
+
 
     // 查询节点
     public void getNode(String nodeId) {
@@ -80,6 +94,20 @@ public class GraphRepository {
                         ", To: " + record.get("b").asMap() +
                         ", Relationship: " + record.get("r").asMap());
             });
+        }
+    }
+
+    // 插入所有节点
+    public void insertNodes(List<Node> nodes) {
+        for (Node node : nodes) {
+            addNode(node); // 调用单个插入节点的方法
+        }
+    }
+
+    // 插入所有边
+    public void insertEdges(List<Edge> edges) {
+        for (Edge edge : edges) {
+            addEdge(edge); // 调用单个插入边的方法
         }
     }
 
@@ -169,4 +197,6 @@ public class GraphRepository {
         }
     }
 }
+
+
 

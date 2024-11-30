@@ -1,20 +1,25 @@
 package webcrawler.model;
 
 public class Node {
-    private String id;      // 唯一标识（URL 或节点 ID）
+    private String id;
+    private String title; // 新增字段
+    private String crawlTime; // 新增字段
 
-
-    public Node(String id, String title, String crawlTime) {
+    public Node(String id, String title, String s) {
         this.id = id;
-
+        this.title = title;
+        this.crawlTime = crawlTime;
     }
 
-    // Getter 和 Setter 方法
     public String getId() {
         return id;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public String getTitle() {
+        return title;
+    }
+
+    public String getCrawlTime() {
+        return crawlTime;
     }
 }
