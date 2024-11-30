@@ -1,6 +1,6 @@
 package webcrawler.parallel;
 
-//<<<<<<< HEADgit
+//<<<<<<< HEAD
 import webcrawler.service.CrawlerService;
 
 import java.util.*;
