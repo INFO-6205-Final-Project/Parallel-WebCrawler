@@ -1,3 +1,4 @@
+
 package webcrawler.service;
 
 
@@ -14,7 +15,7 @@ public class GraphService {
 
     // 添加网页节点
     public void savePageNode(String id, String title, String crawlTime) {
-        Node node = new Node(id, title, crawlTime);
+        Node node = new Node(id, title, "2024-11-29T10:00:00");
         graphRepository.addNode(node);
     }
 
@@ -33,5 +34,5 @@ public class GraphService {
     public void getLinks(String fromNode) {
         graphRepository.getEdges(fromNode);
     }
-}
 
+}

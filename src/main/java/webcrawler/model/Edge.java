@@ -1,6 +1,8 @@
+
 package webcrawler.model;
 
 public class Edge {
+
     private String from;  // 起点节点的 ID
     private String to;    // 终点节点的 ID
     private String relationshipType; // 关系类型
