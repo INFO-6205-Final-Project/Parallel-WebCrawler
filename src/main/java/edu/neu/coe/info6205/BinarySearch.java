@@ -2,6 +2,8 @@ package edu.neu.coe.info6205;
 
 import java.util.Arrays;
 
+
+
 /**
  * Class to provide the functionality of binary search.
  * NOTE that it is essentially the same as the Arrays.binarySearch method.
@@ -18,6 +20,8 @@ public class BinarySearch {
         System.out.println(res1);
         int res2 = Arrays.binarySearch(ar, 0, ar.length, 3);
         System.out.println(res2);
+
+        
     }
 
     /**
