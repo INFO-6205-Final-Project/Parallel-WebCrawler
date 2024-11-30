@@ -14,7 +14,7 @@ public class CrawlerController {
     public CrawlerController() {
         // init the crawler service and parallel service
         this.crawlerService = new CrawlerService();
-        this.parallelCrawler = new ParallelCrawler(crawlerService);
+        this.parallelCrawler = new ParallelCrawler();
     }
 
     /**
