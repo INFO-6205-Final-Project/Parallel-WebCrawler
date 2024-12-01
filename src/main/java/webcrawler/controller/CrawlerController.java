@@ -1,7 +1,7 @@
 
 package webcrawler.controller;
 
-import webcrawler.parallel.ParallelCrawler;
+import webcrawler.parallel.ParallelCrawlerSingle;
 import webcrawler.service.CrawlerService;
 
 import webcrawler.model.Edge;
@@ -14,13 +14,13 @@ import java.util.List;
 import java.util.Set;
 
 public class CrawlerController {
-    private final ParallelCrawler parallelCrawler;
+    private final ParallelCrawlerSingle parallelCrawlerSingle;
     private final CrawlerService crawlerService;
 
     public CrawlerController() {
         // init the crawler service and parallel service
         this.crawlerService = new CrawlerService();
-        this.parallelCrawler = new ParallelCrawler();
+        this.parallelCrawlerSingle = new ParallelCrawlerSingle();
     }
 
     /**

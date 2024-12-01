@@ -60,7 +60,7 @@ import java.util.concurrent.*;
 /**
  * 并行爬虫逻辑，使用队列管理并行任务。
  */
-public class ParallelCrawler {
+public class ParallelCrawlerSingle {
     private final ExecutorService executorService;
     private final GraphService graphService;
     private final CrawlerService crawlerService;
@@ -73,7 +73,7 @@ public class ParallelCrawler {
     /**
      * 构造函数
      */
-    public ParallelCrawler() {
+    public ParallelCrawlerSingle() {
         String uri = "bolt://localhost:7687";
         String username = "neo4j";
         String password = "12345678";
