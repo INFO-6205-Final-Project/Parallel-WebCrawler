@@ -23,43 +23,37 @@ public class CrawlerService {
      * @return Datatype for one level of url(url and sub-urls)
      */
     public CrawlResultDTO crawl(String url) {
-
         CrawlResultDTO data = new CrawlResultDTO();
-        Set<String> extractedUrls = new HashSet<>();
+        Set<String> extractedUrls = new HashSet<>(); // Always initialize
 
         try {
-            // get html content
+            // Fetch HTML content
             Document document = HttpUtils.fetchPage(url);
 
-            // get title
+            // Extract title and crawl time
             String title = document.title();
-
-            // get time
             String crawlTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
-            // print web info
-            System.out.println("Crawled: " + url);
-            System.out.println("Title: " + title);
-            System.out.println("Crawl Time: " + crawlTime);
-
+            // Extract links
             Elements links = document.select("a[href]");
             for (Element link : links) {
                 String absoluteUrl = link.attr("abs:href");
-
                 if (isValidUrl(absoluteUrl) && visitedUrls.add(absoluteUrl)) {
                     extractedUrls.add(absoluteUrl);
                 }
             }
 
-            System.out.println("Found links: " + extractedUrls.size());
             data.setAllElements(url, title, crawlTime, extractedUrls);
 
         } catch (Exception e) {
             System.err.println("Failed to crawl URL: " + url + ", Error: " + e.getMessage());
+            // Initialize fields even in failure cases
+            data.setAllElements(url, null, null, extractedUrls);
         }
 
         return data;
     }
+
     /**
      * Check the validation of the URL
      * @param url URL
