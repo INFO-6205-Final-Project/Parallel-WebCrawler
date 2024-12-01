@@ -1,5 +1,6 @@
 package webcrawler.controller;
 
+import webcrawler.DTO.CrawlResultDTO;
 import webcrawler.parallel.ParallelCrawler;
 import webcrawler.service.CrawlerService;
 
@@ -28,16 +29,23 @@ public class CrawlerController {
      */
     public void startCrawling(List<String> startUrls) {
         System.out.println("Starting the web crawler...");
-        Set<String> urls = new HashSet<>();
+        Set<CrawlResultDTO> urls = new HashSet<>();
         for (String url : startUrls) {
-            urls = crawlerService.crawl(url);
+            urls.add(crawlerService.crawl(url));
         }
         System.out.println("Crawling completed.");
-        for (String url : urls) {
+        for (CrawlResultDTO url : urls) {
             System.out.println(url);
+            for(String suburl : url.getExtractedUrls()) {
+                crawlerService.storeData(url.getUrl(), suburl, url.getTitle(), url.getCrawlTime());
+            }
         }
+
     }
 
+    /**
+     * used for Neo4j demo
+     */
     public void database_run() {
         // 配置 Neo4J 的连接信息
         String uri = "bolt://localhost:7687";
