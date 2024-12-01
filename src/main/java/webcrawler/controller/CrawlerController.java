@@ -3,29 +3,42 @@ package webcrawler.controller;
 import webcrawler.DTO.CrawlResultDTO;
 import webcrawler.parallel.ParallelCrawler;
 import webcrawler.service.CrawlerService;
-
 import webcrawler.model.Edge;
 import webcrawler.model.Node;
 import webcrawler.repository.GraphRepository;
 
 import java.util.List;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 public class CrawlerController {
     private final ParallelCrawler parallelCrawler;
     private final CrawlerService crawlerService;
 
-    public CrawlerController() {
-        // init the crawler service and parallel service
-        this.crawlerService = new CrawlerService();
-        this.parallelCrawler = new ParallelCrawler();
+    /**
+     * 构造函数，使用依赖注入。
+     *
+     * @param crawlerService 爬虫服务实例
+     * @param parallelCrawler 并行爬虫实例
+     */
+    public CrawlerController(CrawlerService crawlerService, ParallelCrawler parallelCrawler) {
+        this.crawlerService = crawlerService;
+        this.parallelCrawler = parallelCrawler;
     }
 
     /**
-     * start crawler
-     * @param startUrls init URL list
+     * 默认构造函数，初始化爬虫服务和并行爬虫。
+     */
+    public CrawlerController() {
+        // 如果不进行依赖注入，可以使用默认构造
+        this.crawlerService = new CrawlerService();
+        this.parallelCrawler = new ParallelCrawler(crawlerService, 10); // 默认线程池大小为10
+    }
+
+    /**
+     * 启动爬虫
+     *
+     * @param startUrls 起始 URL 列表
      */
     public void startCrawling(List<String> startUrls) {
         System.out.println("Starting the web crawler...");
@@ -40,11 +53,10 @@ public class CrawlerController {
                 crawlerService.storeData(url.getUrl(), suburl, url.getTitle(), url.getCrawlTime());
             }
         }
-
     }
 
     /**
-     * used for Neo4j demo
+     * 用于 Neo4j 演示
      */
     public void database_run() {
         // 配置 Neo4J 的连接信息
@@ -59,7 +71,7 @@ public class CrawlerController {
             // 插入图数据（节点和边）
             insertGraphData(repository);
 
-            // 创建 GDS 图投影
+            // 创建图投影
             repository.createGraphProjection();
 
             // 运行 PageRank 算法
@@ -79,7 +91,6 @@ public class CrawlerController {
                 new Node("4", "Page D", "2024-11-29T10:15:00"),
                 new Node("5", "Page E", "2024-11-29T10:20:00")
         );
-
 
         // 定义示例边
         List<Edge> edges = List.of(

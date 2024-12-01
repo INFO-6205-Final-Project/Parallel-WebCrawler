@@ -49,10 +49,8 @@ package webcrawler.parallel;
 //    }
 //}
 //=======
-import webcrawler.repository.GraphRepository;
 import webcrawler.service.CrawlerService;
 import webcrawler.service.GraphService;
-import webcrawler.util.HttpUtils;
 
 import java.util.Set;
 import java.util.concurrent.*;
@@ -73,7 +71,7 @@ public class ParallelCrawler {
     /**
      * 构造函数
      */
-    public ParallelCrawler() {
+    public ParallelCrawler(CrawlerService crawlerService, int i) {
 
         this.executorService = Executors.newFixedThreadPool(10);;
         this.graphService = new GraphService();
