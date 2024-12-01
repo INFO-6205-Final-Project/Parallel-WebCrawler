@@ -1,51 +1,65 @@
 package webcrawler.service;
 
+import webcrawler.DTO.CrawlResultDTO;
 import webcrawler.util.HttpUtils;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.Set;
 
 public class CrawlerService {
 
     private final Set<String> visitedUrls = new HashSet<>();
+    private final GraphService graphService = new GraphService();
 
     /**
      * Just get URL content
      * @param url  URL
-     * @return valida URL from 'root' url
+     * @return Datatype for one level of url(url and sub-urls)
      */
-    public Set<String> crawl(String url) {
+    public CrawlResultDTO crawl(String url) {
+
+        CrawlResultDTO data = new CrawlResultDTO();
         Set<String> extractedUrls = new HashSet<>();
 
         try {
-            // 获取网页内容
+            // get html content
             Document document = HttpUtils.fetchPage(url);
 
-            // 解析页面中所有的链接
+            // get title
+            String title = document.title();
+
+            // get time
+            String crawlTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+
+            // print web info
+            System.out.println("Crawled: " + url);
+            System.out.println("Title: " + title);
+            System.out.println("Crawl Time: " + crawlTime);
+
             Elements links = document.select("a[href]");
             for (Element link : links) {
                 String absoluteUrl = link.attr("abs:href");
 
-                // 检查是否已访问过，过滤重复链接
                 if (isValidUrl(absoluteUrl) && visitedUrls.add(absoluteUrl)) {
                     extractedUrls.add(absoluteUrl);
-                    // TODO: just run once for crawler test
-//                    break;
                 }
             }
 
-            System.out.println("Crawled: " + url + ", Found links: " + extractedUrls.size());
+            System.out.println("Found links: " + extractedUrls.size());
+            data.setAllElements(url, title, crawlTime, extractedUrls);
+
         } catch (Exception e) {
             System.err.println("Failed to crawl URL: " + url + ", Error: " + e.getMessage());
         }
 
-        return extractedUrls;
+        return data;
     }
-
     /**
      * Check the validation of the URL
      * @param url URL
@@ -53,5 +67,28 @@ public class CrawlerService {
      */
     private boolean isValidUrl(String url) {
         return url.startsWith("http");
+    }
+
+
+    /**
+     * store URL data to Graph database
+     * @param fromURL Node URL
+     * @param toURL Edge URL, next node url
+     * @param title web title
+     * @param crawlTime time
+     */
+    public void storeData(String fromURL, String toURL, String title, String crawlTime) {
+        try {
+
+            graphService.savePageNode(fromURL, title, crawlTime);
+
+            graphService.savePageNode(toURL, toURL, crawlTime);
+
+            graphService.saveLink(fromURL, toURL, "RELATES_TO");
+
+            System.out.println("Stored data: " + fromURL + " -> " + toURL);
+        } catch (Exception e) {
+            System.err.println("Failed to store data: " + fromURL + " -> " + toURL + ", Error: " + e.getMessage());
+        }
     }
 }

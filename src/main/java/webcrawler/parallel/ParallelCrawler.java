@@ -74,11 +74,9 @@ public class ParallelCrawler {
      * 构造函数
      */
     public ParallelCrawler() {
-        String uri = "bolt://localhost:7687";
-        String username = "neo4j";
-        String password = "12345678";
+
         this.executorService = Executors.newFixedThreadPool(10);;
-        this.graphService = new GraphService(new GraphRepository(uri, username, password));
+        this.graphService = new GraphService();
         this.crawlerService = new CrawlerService();
         this.maxDepth = 5;
         this.visitedUrls = ConcurrentHashMap.newKeySet();

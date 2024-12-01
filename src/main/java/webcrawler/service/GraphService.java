@@ -8,8 +8,11 @@ import webcrawler.repository.GraphRepository;
 public class GraphService {
     private final GraphRepository graphRepository;
 
-    public GraphService(GraphRepository graphRepository) {
-        this.graphRepository = graphRepository;
+    public GraphService() {
+        String uri = "bolt://localhost:7687";
+        String username = "neo4j";
+        String password = "12345678";
+        this.graphRepository = new GraphRepository(uri, username, password);
     }
 
     // 添加网页节点
