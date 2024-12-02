@@ -196,6 +196,29 @@ public class GraphRepository {
             }
         }
     }
+
+    // 查询节点的出度（out-degree）
+    public void printNodeOutDegrees() {
+        try (Session session = driver.session()) {
+            String query = """
+            MATCH (n:Page)-[r:RELATES_TO]->()
+            RETURN n.id AS pageId, COUNT(r) AS outDegree
+            ORDER BY outDegree DESC
+        """;
+
+            var result = session.run(query);
+            System.out.println("Node Out-Degrees:");
+            while (result.hasNext()) {
+                var record = result.next();
+                System.out.println("Page " + record.get("pageId").asString() +
+                        " has out-degree: " + record.get("outDegree").asInt());
+            }
+        } catch (Exception e) {
+            System.err.println("Error while fetching out-degrees: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
 }
 
 

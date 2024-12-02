@@ -58,6 +58,16 @@ public class CrawlerController {
 
         controller.crawlerService.pageRank();
 
+        //Out-degree
+        GraphRepository repository = new GraphRepository("bolt://localhost:7687", "neo4j", "12345678");
+        try {
+            repository.printNodeOutDegrees();
+        } finally {
+            repository.close();
+        }
+
+
+
 //        CrawlerController controller = new CrawlerController(10,3);
 //
 //        // 测试爬虫任务
