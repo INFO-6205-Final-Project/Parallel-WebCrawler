@@ -49,7 +49,21 @@ public class CrawlerController {
     }
 
     public static void main(String[] args) {
-//        CrawlerController controller = new CrawlerController(4, 3);
+
+//         CrawlerController controller = new CrawlerController(4, 3);
+
+//         // 测试爬虫任务
+//         Set<String> testUrls = Set.of(
+//                 "https://www.cfainstitute.org/insights/professional-learning"
+//         );
+//         controller.parallelCrawler.startCrawling(testUrls);
+
+
+//         System.out.println("Crawler stopped");
+
+
+
+
 //
 //        // 测试爬虫任务
 //        Set<String> testUrls = Set.of(
@@ -58,5 +72,17 @@ public class CrawlerController {
 //        controller.parallelCrawler.startCrawling(testUrls);
 //
         Benchmark.benchmarkrun();
+      
+        controller.crawlerService.pageRank();
+
+        //Out-degree
+        GraphRepository repository = new GraphRepository("bolt://localhost:7687", "neo4j", "12345678");
+        try {
+            repository.printNodeOutDegrees();
+        } finally {
+            repository.close();
+        }
+
+      
     }
 }
