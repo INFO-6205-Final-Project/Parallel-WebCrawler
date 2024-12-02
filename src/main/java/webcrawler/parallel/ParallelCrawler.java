@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.Thread.sleep;
 
@@ -24,6 +25,17 @@ public class ParallelCrawler {
     private final int maxDepth;
     private final Queue<UrlDepthPair> urlQueue; //
     private volatile boolean isStopped = false;
+    private final AtomicInteger crawlCount = new AtomicInteger(0); // counter
+    private int emptyQueueCount = 0;
+    private static final int MAX_EMPTY_COUNT = 20; // max empty queue request
+
+    /**
+     * Make sure all threads are terminated and isStopped is true
+     * @return true if all threads are stop
+     */
+    public boolean getIsStopped() {
+        return executorService.isTerminated() && asyncExecutor.isTerminated() && isStopped;
+    }
 
 
     /**
@@ -34,13 +46,24 @@ public class ParallelCrawler {
     public ParallelCrawler(int threadCount, int maxDepth) {
 
         this.executorService = Executors.newFixedThreadPool(threadCount);
-        this.asyncExecutor = Executors.newFixedThreadPool(threadCount);
+        this.asyncExecutor = Executors.newFixedThreadPool(threadCount * 2); // bigger than the main thread pool
         this.crawlerService = new CrawlerService();
         this.maxDepth = maxDepth;
         // parallel safe type set, serve as priority queue
 //        this.visitedUrls = ConcurrentHashMap.newKeySet();
-        this.urlQueue = new ConcurrentLinkedQueue<>();
+//        this.urlQueue = new ConcurrentLinkedQueue<>();
+
+        this.urlQueue = new PriorityBlockingQueue<>();
     }
+
+    /**
+     * getter
+     * @return Number of websites that have been crawled
+     */
+    public int getCrawlCount() {
+        return crawlCount.get();
+    }
+
 
     /**
      * start the crawler mission
@@ -68,7 +91,6 @@ public class ParallelCrawler {
         for (int i = 0; i < consumerNum; i++) {
             executorService.submit(this::processQueue);
         }
-//        stopCrawling();
     }
 
     /**
@@ -77,15 +99,20 @@ public class ParallelCrawler {
     public void stopCrawling() {
         isStopped = true;
         executorService.shutdown();
+        asyncExecutor.shutdown();
         try {
-            if (!executorService.awaitTermination(15, TimeUnit.SECONDS)) {
-                System.err.println("Executor did not terminate in the specified time.");
+            if (!executorService.awaitTermination(30, TimeUnit.SECONDS)) {
                 executorService.shutdownNow();
+            }
+            if (!asyncExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+                asyncExecutor.shutdownNow();
             }
         } catch (InterruptedException e) {
             executorService.shutdownNow();
+            asyncExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
+        System.out.println("Crawling stopped. All tasks completed.");
     }
 
     /**
@@ -95,7 +122,7 @@ public class ParallelCrawler {
      * @param depth current depth
      */
     private void enqueueUrl(String url, int depth) {
-        System.out.println(Thread.currentThread().getName() + " AM I blocked the program?");
+//        System.out.println(Thread.currentThread().getName() + " AM I blocked the program?");
         if (depth > maxDepth) return;
 //        if (visitedUrls.contains(url)) return;
 
@@ -110,7 +137,7 @@ public class ParallelCrawler {
         if (!urlQueue.offer(new UrlDepthPair(url, depth))) {
             System.err.println("Queue is full, cannot add URL: " + url);
         } else {
-            System.out.println(Thread.currentThread().getName() + "add url: " + url);
+//            System.out.println(Thread.currentThread().getName() + "add url: " + url);
         }
     }
 
@@ -123,36 +150,46 @@ public class ParallelCrawler {
                 UrlDepthPair pair = urlQueue.poll(); //take() ; poll(1, java.util.concurrent.TimeUnit.MINUTES)
                  // take(): use the block way to get elements, not null
                 if (pair == null) {
-                    if (isStopped && urlQueue.isEmpty()) {
-                        System.out.println(Thread.currentThread().getName() + " - Queue is empty and crawling is stopped. Thread exiting.");
+                    emptyQueueCount++;
+//                    System.out.println(Thread.currentThread().getName() + " - No tasks in the queue. Waiting for new tasks...sleep 1 s");
+
+                    if (emptyQueueCount >= MAX_EMPTY_COUNT) {
+//                        System.out.println(Thread.currentThread().getName() + " - Reached max empty count. Stopping crawler...");
+                        stopCrawling();
+                        System.out.println("Crawler stopped");
+
+                        System.out.println("Total crawled so far: " + getCrawlCount());
                         break;
                     }
-                    System.out.println(Thread.currentThread().getName() + " - No tasks in the queue. Waiting for new tasks...sleep 1 s");
+
                     sleep(1000);
                     continue;
                 }
+                // reset counter
+                emptyQueueCount = 0;
                 String url = pair.getUrl();
                 int depth = pair.getDepth();
 
-                System.out.println(Thread.currentThread().getName() + " - Processing URL: " + url + " at depth " + depth);
+//                System.out.println(Thread.currentThread().getName() + " - Processing URL: " + url + " at depth " + depth);
 
                 // synchronous crawl and store
                 // crawl
                 CompletableFuture.supplyAsync(() -> crawlerService.crawl(url), asyncExecutor)
                         .thenAccept(result -> {
                             if (result != null) {
-                                System.out.println(Thread.currentThread().getName() + " - Processing crawl result for: " + url);
+                                crawlCount.incrementAndGet();
+//                                System.out.println(Thread.currentThread().getName() + " - Processing crawl result for: " + url);
                                 if(result.getExtractedUrls() != null) {
                                     result.getExtractedUrls()
                                             .forEach(link -> enqueueUrl(link, depth + 1)); // add new URL
                                     result.getExtractedUrls()
                                             .forEach(link -> crawlerService.storeData(result.getUrl(), link, result.getTitle(), result.getCrawlTime()));
-                                    System.out.println(Thread.currentThread().getName() + "Queue size after enqueue: " + urlQueue.size());
+//                                    System.out.println(Thread.currentThread().getName() + "Queue size after enqueue: " + urlQueue.size());
                                 } else {
-                                    System.out.println(Thread.currentThread().getName() + "No sub URL found from " + result.getUrl());
+//                                    System.out.println(Thread.currentThread().getName() + "No sub URL found from " + result.getUrl());
                                 }
                             } else {
-                                System.out.println(Thread.currentThread().getName() + " - No result for: " + url);
+//                                System.out.println(Thread.currentThread().getName() + " - No result for: " + url);
                             }
                         })
                         .exceptionally(ex -> {
@@ -171,7 +208,7 @@ public class ParallelCrawler {
     /**
      * inner class
      */
-    private static class UrlDepthPair {
+    private static class UrlDepthPair implements Comparable<UrlDepthPair>{
         private final String url;
         private final int depth;
 
@@ -186,6 +223,15 @@ public class ParallelCrawler {
 
         public int getDepth() {
             return depth;
+        }
+
+        @Override
+        public int compareTo(UrlDepthPair o) {
+            int depthComp = Integer.compare(this.depth, o.depth);
+            if(depthComp != 0) {
+                return depthComp;
+            }
+            return Integer.compare(this.url.length(), o.url.length());
         }
     }
 }

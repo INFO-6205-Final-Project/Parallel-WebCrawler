@@ -3,6 +3,7 @@ package webcrawler.controller;
 import webcrawler.DTO.CrawlResultDTO;
 import webcrawler.parallel.ParallelCrawler;
 import webcrawler.service.CrawlerService;
+import webcrawler.util.Benchmark;
 
 import webcrawler.model.Edge;
 import webcrawler.model.Node;
@@ -12,6 +13,9 @@ import java.util.List;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
+
+import edu.neu.coe.info6205.util.Benchmark_Timer;
 
 public class CrawlerController {
     private final ParallelCrawler parallelCrawler;
@@ -45,28 +49,14 @@ public class CrawlerController {
     }
 
     public static void main(String[] args) {
-        CrawlerController controller = new CrawlerController(4, 3);
-
-        // 测试爬虫任务
-        Set<String> testUrls = Set.of(
-                "https://www.cfainstitute.org/insights/professional-learning"
-        );
-        controller.parallelCrawler.startCrawling(testUrls);
-
-
-        System.out.println("Crawler stopped");
-
-        controller.crawlerService.pageRank();
-
-//        CrawlerController controller = new CrawlerController(10,3);
+//        CrawlerController controller = new CrawlerController(4, 3);
 //
 //        // 测试爬虫任务
-//        List<String> testUrls = List.of(
+//        Set<String> testUrls = Set.of(
 //                "https://www.cfainstitute.org/insights/professional-learning"
 //        );
-//        controller.startCrawling(testUrls);
-
-
-
+//        controller.parallelCrawler.startCrawling(testUrls);
+//
+        Benchmark.benchmarkrun();
     }
 }
