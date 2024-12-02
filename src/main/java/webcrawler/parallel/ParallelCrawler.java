@@ -1,174 +1,175 @@
 package webcrawler.parallel;
 
-//<<<<<<< HEAD
-//import webcrawler.service.CrawlerService;
-//
-//import java.util.*;
-//import java.util.concurrent.CompletableFuture;
-//import java.util.concurrent.ConcurrentLinkedQueue;
-//
-//public class ParallelCrawler {
-//
-//    private final CrawlerService crawlerService;
-//    private final Queue<String> urlQueue = new ConcurrentLinkedQueue<>();
-//
-//    public ParallelCrawler(CrawlerService crawlerService) {
-//        this.crawlerService = crawlerService;
-//    }
-//
-//    /**
-//     * 并行爬取 URL
-//     * @param startUrls 起始 URL 列表
-//     */
-//    public void crawlInParallel(List<String> startUrls) {
-//        urlQueue.addAll(startUrls);
-//        List<CompletableFuture<Void>> tasks = new ArrayList<>();
-//
-//        // 并行处理队列中的任务
-//        while (!urlQueue.isEmpty()) {
-//            String currentUrl = urlQueue.poll();
-//            if (currentUrl != null) {
-//                tasks.add(CompletableFuture.runAsync(() -> processUrl(currentUrl)));
-//            }
-//        }
-//
-//        // 等待所有任务完成
-//        CompletableFuture.allOf(tasks.toArray(new CompletableFuture[0])).join();
-//    }
-//
-//    /**
-//     * run the crawler job as an atomic operation
-//     * @param url  URL
-//     */
-//    private void processUrl(String url) {
-//        // use crawlerService
-//        Set<String> newUrls = crawlerService.crawl(url);
-//
-//        // add new url to Queue
-//        urlQueue.addAll(newUrls);
-//    }
-//}
-//=======
+import webcrawler.DTO.CrawlResultDTO;
 import webcrawler.repository.GraphRepository;
 import webcrawler.service.CrawlerService;
 import webcrawler.service.GraphService;
 import webcrawler.util.HttpUtils;
 
+import java.util.HashSet;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.*;
+
+import static java.lang.Thread.sleep;
 
 /**
  * 并行爬虫逻辑，使用队列管理并行任务。
  */
 public class ParallelCrawler {
-    private final ExecutorService executorService;
-    private final GraphService graphService;
+    private final ExecutorService executorService; // main thread poll
+    private final ExecutorService asyncExecutor; // crawler thread poll
     private final CrawlerService crawlerService;
-    private final Set<String> visitedUrls;
+//    private final Set<String> visitedUrls;
     private final int maxDepth;
-    private final BlockingQueue<UrlDepthPair> urlQueue;
+    private final Queue<UrlDepthPair> urlQueue; //
     private volatile boolean isStopped = false;
 
 
     /**
-     * 构造函数
+     * Constructor
+     * @param threadCount thread num for Thread Pool manager
+     * @param maxDepth set max depth
      */
-    public ParallelCrawler() {
+    public ParallelCrawler(int threadCount, int maxDepth) {
 
-        this.executorService = Executors.newFixedThreadPool(10);;
-        this.graphService = new GraphService();
+        this.executorService = Executors.newFixedThreadPool(threadCount);
+        this.asyncExecutor = Executors.newFixedThreadPool(threadCount);
         this.crawlerService = new CrawlerService();
-        this.maxDepth = 5;
-        this.visitedUrls = ConcurrentHashMap.newKeySet();
-        this.urlQueue = new LinkedBlockingQueue<>();
+        this.maxDepth = maxDepth;
+        // parallel safe type set, serve as priority queue
+//        this.visitedUrls = ConcurrentHashMap.newKeySet();
+        this.urlQueue = new ConcurrentLinkedQueue<>();
     }
 
     /**
-     * 启动爬虫，传入起始URL集合
+     * start the crawler mission
      *
-     * @param startUrls 起始URL集合
+     * @param startUrls URL set
      */
     public void startCrawling(Set<String> startUrls) {
-        // 将起始URL加入队列
         for (String url : startUrls) {
             enqueueUrl(url, 0);
         }
 
-        // 启动消费者线程
-        int consumers = ((webcrawler.parallel.ThreadPoolManager) webcrawler.parallel.ThreadPoolManager.getInstance(100)).getExecutorService().toString().length(); // 示例获取线程数
-        for (int i = 0; i < ((webcrawler.parallel.ThreadPoolManager) webcrawler.parallel.ThreadPoolManager.getInstance(100)).getExecutorService().toString().length(); i++) {
+//        // warmup
+//        Set<CrawlResultDTO> urlsDTO = new HashSet<>();
+//        for (String url : startUrls) {
+//            urlsDTO.add(crawlerService.crawl(url));
+//        }
+//        for(CrawlResultDTO data : urlsDTO) {
+//            for(String url : data.getExtractedUrls()) {
+//                enqueueUrl(url, 1);
+//            }
+//        }
+
+        int consumerNum = ((ThreadPoolExecutor) executorService).getCorePoolSize();
+        System.out.println("consumer num" + consumerNum);
+        for (int i = 0; i < consumerNum; i++) {
             executorService.submit(this::processQueue);
+        }
+//        stopCrawling();
+    }
+
+    /**
+     * stop Crawling and wait for job to stop within 60s
+     */
+    public void stopCrawling() {
+        isStopped = true;
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(15, TimeUnit.SECONDS)) {
+                System.err.println("Executor did not terminate in the specified time.");
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 
     /**
-     * 停止爬虫
-     */
-    public void stopCrawling() {
-        isStopped = true;
-    }
-
-    /**
-     * 将URL和其深度加入队列
+     * add URL to the Queue
      *
-     * @param url   要爬取的URL
-     * @param depth 当前深度
+     * @param url   URL
+     * @param depth current depth
      */
     private void enqueueUrl(String url, int depth) {
+        System.out.println(Thread.currentThread().getName() + " AM I blocked the program?");
         if (depth > maxDepth) return;
-        if (visitedUrls.contains(url)) return;
-        urlQueue.offer(new UrlDepthPair(url, depth));
+//        if (visitedUrls.contains(url)) return;
+
+        // put new URL into current safe queue, if Queue is full, interrupt current thread, not terminate
+//        try{
+//            urlQueue.put(new UrlDepthPair(url, depth)); // block way
+//        } catch (InterruptedException e) {
+//            System.out.println("Queue is full for now");
+//            Thread.currentThread().interrupt();
+//        }
+        // unblock way
+        if (!urlQueue.offer(new UrlDepthPair(url, depth))) {
+            System.err.println("Queue is full, cannot add URL: " + url);
+        } else {
+            System.out.println(Thread.currentThread().getName() + "add url: " + url);
+        }
     }
 
     /**
      * 处理队列中的URL
      */
     private void processQueue() {
-        while (!isStopped) {
+        while (!isStopped ) {// && !Thread.currentThread().isInterrupted()
             try {
-                UrlDepthPair pair = urlQueue.poll(1, java.util.concurrent.TimeUnit.MINUTES);
+                UrlDepthPair pair = urlQueue.poll(); //take() ; poll(1, java.util.concurrent.TimeUnit.MINUTES)
+                 // take(): use the block way to get elements, not null
                 if (pair == null) {
-                    // 队列超时，可能没有更多任务
-                    break;
+                    if (isStopped && urlQueue.isEmpty()) {
+                        System.out.println(Thread.currentThread().getName() + " - Queue is empty and crawling is stopped. Thread exiting.");
+                        break;
+                    }
+                    System.out.println(Thread.currentThread().getName() + " - No tasks in the queue. Waiting for new tasks...sleep 1 s");
+                    sleep(1000);
+                    continue;
                 }
                 String url = pair.getUrl();
                 int depth = pair.getDepth();
 
-                if (!visitedUrls.add(url)) {
-                    continue; // 已访问
-                }
+                System.out.println(Thread.currentThread().getName() + " - Processing URL: " + url + " at depth " + depth);
 
-                CompletableFuture.supplyAsync(() -> crawlerService.crawl(url), executorService)
-//                        .thenApplyAsync(html -> {
-//                            if (html != null) {
-//                                return HttpUtils.extractLinks(html, url);
-//                            }
-//                            return Collections.<String>emptySet();
-//                        }, executorService)
-//                        .thenAcceptAsync(links -> {
-//                            // 存储节点和边到图数据库
-//                            graphService.saveNode(new Node(url));
-//                            for (String link : links) {
-//                                graphService.saveEdge(new Edge(url, link));
-//                                // 将新链接加入队列
-//                                enqueueUrl(link, depth + 1);
-//                            }
-//                        }, executorService)
+                // synchronous crawl and store
+                // crawl
+                CompletableFuture.supplyAsync(() -> crawlerService.crawl(url), asyncExecutor)
+                        .thenAccept(result -> {
+                            if (result != null) {
+                                System.out.println(Thread.currentThread().getName() + " - Processing crawl result for: " + url);
+                                if(result.getExtractedUrls() != null) {
+                                    result.getExtractedUrls()
+                                            .forEach(link -> enqueueUrl(link, depth + 1)); // add new URL
+                                    result.getExtractedUrls()
+                                            .forEach(link -> crawlerService.storeData(result.getUrl(), link, result.getTitle(), result.getCrawlTime()));
+                                    System.out.println(Thread.currentThread().getName() + "Queue size after enqueue: " + urlQueue.size());
+                                } else {
+                                    System.out.println(Thread.currentThread().getName() + "No sub URL found from " + result.getUrl());
+                                }
+                            } else {
+                                System.out.println(Thread.currentThread().getName() + " - No result for: " + url);
+                            }
+                        })
                         .exceptionally(ex -> {
-                            // 记录异常日志
-                            System.err.println("Error crawling URL " + url + ": " + ex.getMessage());
+                            System.err.println(Thread.currentThread().getName() + " - Error processing URL: " + url + ", " + ex.getMessage());
                             return null;
                         });
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                System.out.println("Thread interrupted. Exiting...");
                 break;
             }
         }
     }
 
     /**
-     * 内部类，用于存储URL和其对应的爬取深度
+     * inner class
      */
     private static class UrlDepthPair {
         private final String url;

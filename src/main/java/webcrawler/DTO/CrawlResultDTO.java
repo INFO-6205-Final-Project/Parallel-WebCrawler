@@ -1,29 +1,34 @@
 package webcrawler.DTO;
 
 import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 public class CrawlResultDTO {
 
     private String url;
     private String title;
     private String crawlTime;
-    private Set<String> extractedUrls;
+    private ConcurrentSkipListSet<String> extractedUrls;
 
     // Constructor
     public CrawlResultDTO(){}
 
-    public CrawlResultDTO(String url, String title, String crawlTime, Set<String> extractedUrls) {
+    public CrawlResultDTO(String url, String title, String crawlTime, ConcurrentSkipListSet<String> extractedUrls) {
         this.url = url;
         this.title = title;
         this.crawlTime = crawlTime;
         this.extractedUrls = extractedUrls;
     }
 
-    public void setAllElements(String url, String title, String crawlTime, Set<String> extractedUrls){
+    public void setAllElements(String url, String title, String crawlTime, ConcurrentSkipListSet<String> extractedUrls){
         this.url = url;
         this.title = title;
         this.crawlTime = crawlTime;
         this.extractedUrls = extractedUrls;
+    }
+
+    public void addURL(String URL) {
+        this.extractedUrls.add(URL);
     }
 
     // Getters and Setters
@@ -55,7 +60,7 @@ public class CrawlResultDTO {
         return extractedUrls;
     }
 
-    public void setExtractedUrls(Set<String> extractedUrls) {
+    public void setExtractedUrls(ConcurrentSkipListSet<String> extractedUrls) {
         this.extractedUrls = extractedUrls;
     }
 

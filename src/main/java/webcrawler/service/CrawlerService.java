@@ -11,11 +11,18 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 public class CrawlerService {
 
-    private final Set<String> visitedUrls = new HashSet<>();
-    private final GraphService graphService = new GraphService();
+    private final Set<String> visitedUrls ;
+    private final GraphService graphService ;
+
+
+    public CrawlerService() {
+        this.visitedUrls = new HashSet<>();
+        this.graphService = new GraphService();
+    }
 
     /**
      * Just get URL content
@@ -25,7 +32,11 @@ public class CrawlerService {
     public CrawlResultDTO crawl(String url) {
 
         CrawlResultDTO data = new CrawlResultDTO();
-        Set<String> extractedUrls = new HashSet<>();
+        ConcurrentSkipListSet<String> extractedUrls = new ConcurrentSkipListSet<>((url1, url2) -> {
+            int lengthComparison = Integer.compare(url1.length(), url2.length());
+            // If lengths are equal, use natural order to ensure consistency
+            return lengthComparison != 0 ? lengthComparison : url1.compareTo(url2);
+        });
 
         try {
             // get html content
@@ -55,18 +66,66 @@ public class CrawlerService {
             data.setAllElements(url, title, crawlTime, extractedUrls);
 
         } catch (Exception e) {
-            System.err.println("Failed to crawl URL: " + url + ", Error: " + e.getMessage());
+            System.out.println("Failed to crawl URL: " + url + ", Error: " + e.getMessage());
         }
 
         return data;
     }
+
+
+    public void pageRank() {
+        graphService.runPageRank();
+    }
+
     /**
      * Check the validation of the URL
      * @param url URL
      * @return if valid
      */
     private boolean isValidUrl(String url) {
-        return url.startsWith("http");
+
+        // Check if the URL starts with "https://www.cfainstitute.org/"
+        if (!url.startsWith("https://www.cfainstitute.org/insights")) {
+            return false;
+        }
+
+        // Check if the URL starts with "http" or "https"
+        if (!url.startsWith("http")) {
+            return false;
+        }
+        // Exclude .onion domains (dark web URLs)
+        if (url.endsWith(".onion")) {
+            return false;
+        }
+        // Ignore "my" subdomains
+        if (url.startsWith("https://my.") || url.startsWith("http://my.")) {
+            return false;
+        }
+        // Ignore query parameters or session-related links
+        if (url.contains("?") || url.contains("session")) {
+            return false;
+        }
+        // Ignore anchor tags
+        if (url.contains("#")) {
+            return false;
+        }
+        // Ignore URLs containing "Account" or "Create Account" (case-insensitive)
+        String lowerCaseUrl = url.toLowerCase();
+        if (lowerCaseUrl.contains("account") || lowerCaseUrl.contains("create account")) {
+            return false;
+        }
+        // Ignore URLs ending with .pdf
+        if (lowerCaseUrl.endsWith(".pdf")) {
+            return false;
+        }
+        // Ignore URLs ending with common video file extensions
+        String[] videoExtensions = {".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".webm"};
+        for (String ext : videoExtensions) {
+            if (lowerCaseUrl.endsWith(ext)) {
+                return false;
+            }
+        }
+        return true;
     }
 
 
