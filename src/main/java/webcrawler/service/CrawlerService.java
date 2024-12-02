@@ -49,9 +49,9 @@ public class CrawlerService {
             String crawlTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 
             // print web info
-            System.out.println("Crawled: " + url);
-            System.out.println("Title: " + title);
-            System.out.println("Crawl Time: " + crawlTime);
+//            System.out.println("Crawled: " + url);
+//            System.out.println("Title: " + title);
+//            System.out.println("Crawl Time: " + crawlTime);
 
             Elements links = document.select("a[href]");
             for (Element link : links) {
@@ -62,11 +62,11 @@ public class CrawlerService {
                 }
             }
 
-            System.out.println("Found links: " + extractedUrls.size());
+//            System.out.println("Found links: " + extractedUrls.size());
             data.setAllElements(url, title, crawlTime, extractedUrls);
 
         } catch (Exception e) {
-            System.out.println("Failed to crawl URL: " + url + ", Error: " + e.getMessage());
+//            System.out.println("Failed to crawl URL: " + url + ", Error: " + e.getMessage());
         }
 
         return data;
@@ -84,8 +84,8 @@ public class CrawlerService {
      */
     private boolean isValidUrl(String url) {
 
-        // Check if the URL starts with "https://www.cfainstitute.org/"
-        if (!url.startsWith("https://www.cfainstitute.org/insights")) {
+//        // Check if the URL starts with "https://www.cfainstitute.org/"
+        if (!url.contains("cfainstitute")) {
             return false;
         }
 
@@ -145,9 +145,9 @@ public class CrawlerService {
 
             graphService.saveLink(fromURL, toURL, "RELATES_TO");
 
-            System.out.println("Stored data: " + fromURL + " -> " + toURL);
+//            System.out.println("Stored data: " + fromURL + " -> " + toURL);
         } catch (Exception e) {
-            System.err.println("Failed to store data: " + fromURL + " -> " + toURL + ", Error: " + e.getMessage());
+//            System.err.println("Failed to store data: " + fromURL + " -> " + toURL + ", Error: " + e.getMessage());
         }
     }
 }
