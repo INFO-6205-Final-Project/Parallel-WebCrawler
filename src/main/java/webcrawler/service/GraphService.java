@@ -13,6 +13,10 @@ public class GraphService {
         String username = "neo4j";
         String password = "12345678";
         this.graphRepository = new GraphRepository(uri, username, password);
+
+        graphRepository.initializeGraphData();
+        graphRepository.createGraphProjection();
+
     }
 
     // 添加网页节点
@@ -35,6 +39,10 @@ public class GraphService {
     // 查询链接信息
     public void getLinks(String fromNode) {
         graphRepository.getEdges(fromNode);
+    }
+
+    public void runPageRank() {
+        graphRepository.runPageRank();
     }
 
 }
