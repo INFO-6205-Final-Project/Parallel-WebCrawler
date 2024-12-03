@@ -108,6 +108,12 @@
             <artifactId>neo4j-java-driver</artifactId>
             <version>5.12.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>RELEASE</version>
+            <scope>test</scope>
+        </dependency>
         <!--        <dependency>
                     <groupId>edu.neu.coe.mgen</groupId>
                     <artifactId>INFO6205</artifactId>

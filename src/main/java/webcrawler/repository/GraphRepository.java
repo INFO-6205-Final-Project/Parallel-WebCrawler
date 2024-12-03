@@ -1,5 +1,6 @@
 package webcrawler.repository;
 
+import edu.neu.coe.info6205.util.LazyLogger;
 import org.neo4j.driver.*;
 import webcrawler.model.Edge;
 import webcrawler.model.Node;
@@ -8,6 +9,8 @@ import java.util.List;
 
 
 public class GraphRepository {
+    private static final LazyLogger logger = new LazyLogger(GraphRepository.class);
+
     private final Driver driver;
 
     public GraphRepository(String uri, String username, String password) {
@@ -170,7 +173,9 @@ public class GraphRepository {
             System.out.println("Graph projection created in GDS.");
         } catch (Exception e) {
             System.err.println("Error while creating graph projection: " + e.getMessage());
+            logger.error("Error while creating graph projection: " + e.getMessage());
             e.printStackTrace();
+
         }
     }
 
@@ -215,6 +220,7 @@ public class GraphRepository {
             }
         } catch (Exception e) {
             System.err.println("Error while fetching out-degrees: " + e.getMessage());
+            logger.error("Error while fetching out-degrees: " + e.getMessage());
             e.printStackTrace();
         }
     }

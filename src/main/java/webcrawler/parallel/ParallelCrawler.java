@@ -1,5 +1,6 @@
 package webcrawler.parallel;
 
+import edu.neu.coe.info6205.util.LazyLogger;
 import webcrawler.DTO.CrawlResultDTO;
 import webcrawler.repository.GraphRepository;
 import webcrawler.service.CrawlerService;
@@ -18,6 +19,9 @@ import static java.lang.Thread.sleep;
  * 并行爬虫逻辑，使用队列管理并行任务。
  */
 public class ParallelCrawler {
+
+    private static final LazyLogger logger = new LazyLogger(ParallelCrawler.class);
+
     private final ExecutorService executorService; // main thread poll
     private final ExecutorService asyncExecutor; // crawler thread poll
     private final CrawlerService crawlerService;
@@ -46,7 +50,7 @@ public class ParallelCrawler {
     public ParallelCrawler(int threadCount, int maxDepth) {
 
         this.executorService = Executors.newFixedThreadPool(threadCount);
-        this.asyncExecutor = Executors.newFixedThreadPool(threadCount * 2); // bigger than the main thread pool
+        this.asyncExecutor = Executors.newFixedThreadPool(threadCount); // bigger than the main thread pool
         this.crawlerService = new CrawlerService();
         this.maxDepth = maxDepth;
         // parallel safe type set, serve as priority queue
@@ -111,6 +115,7 @@ public class ParallelCrawler {
             executorService.shutdownNow();
             asyncExecutor.shutdownNow();
             Thread.currentThread().interrupt();
+            logger.error( "Error occurred while stopping crawling: " + e.getMessage(), e);
         }
         System.out.println("Crawling stopped. All tasks completed.");
     }
@@ -124,25 +129,19 @@ public class ParallelCrawler {
     private void enqueueUrl(String url, int depth) {
 //        System.out.println(Thread.currentThread().getName() + " AM I blocked the program?");
         if (depth > maxDepth) return;
-//        if (visitedUrls.contains(url)) return;
 
-        // put new URL into current safe queue, if Queue is full, interrupt current thread, not terminate
-//        try{
-//            urlQueue.put(new UrlDepthPair(url, depth)); // block way
-//        } catch (InterruptedException e) {
-//            System.out.println("Queue is full for now");
-//            Thread.currentThread().interrupt();
-//        }
         // unblock way
         if (!urlQueue.offer(new UrlDepthPair(url, depth))) {
-            System.err.println("Queue is full, cannot add URL: " + url);
+//            System.err.println("Queue is full, cannot add URL: " + url);
+            logger.warn("Queue is full, cannot add URL: " + url);
+
         } else {
 //            System.out.println(Thread.currentThread().getName() + "add url: " + url);
         }
     }
 
     /**
-     * 处理队列中的URL
+     * processQueue
      */
     private void processQueue() {
         while (!isStopped ) {// && !Thread.currentThread().isInterrupted()
@@ -156,6 +155,9 @@ public class ParallelCrawler {
                     if (emptyQueueCount >= MAX_EMPTY_COUNT) {
 //                        System.out.println(Thread.currentThread().getName() + " - Reached max empty count. Stopping crawler...");
                         stopCrawling();
+
+                        logger.info( "Crawler stopped due to empty queue.");
+                        logger.info( "Total crawled so far: " + getCrawlCount());
                         System.out.println("Crawler stopped");
 
                         System.out.println("Total crawled so far: " + getCrawlCount());
@@ -187,19 +189,23 @@ public class ParallelCrawler {
 //                                    System.out.println(Thread.currentThread().getName() + "Queue size after enqueue: " + urlQueue.size());
                                 } else {
 //                                    System.out.println(Thread.currentThread().getName() + "No sub URL found from " + result.getUrl());
+                                    logger.warn(Thread.currentThread().getName() + "No sub URL found from " + result.getUrl());
                                 }
                             } else {
 //                                System.out.println(Thread.currentThread().getName() + " - No result for: " + url);
+                                logger.warn(Thread.currentThread().getName() + " - No result for: " + url);
                             }
                         })
                         .exceptionally(ex -> {
-                            System.err.println(Thread.currentThread().getName() + " - Error processing URL: " + url + ", " + ex.getMessage());
+//                            System.err.println(Thread.currentThread().getName() + " - Error processing URL: " + url + ", " + ex.getMessage());
+                            logger.error(Thread.currentThread().getName() + " - Error processing URL: " + url + ", " + ex.getMessage());
                             return null;
                         });
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                System.out.println("Thread interrupted. Exiting...");
+//                System.out.println("Thread interrupted. Exiting...");
+                logger.warn("Thread interrupted. Exiting...");
                 break;
             }
         }

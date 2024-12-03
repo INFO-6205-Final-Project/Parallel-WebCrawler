@@ -15,8 +15,8 @@ public class Benchmark {
         System.out.println("Starting Benchmark...");
 
         // test combine
-        int[] threadPoolSizes = {2, 3, 4}; // thread pool
-        int[] depths = {1, 2, 3};       // depth
+        int[] threadPoolSizes = {4, 5, 6}; // thread pool
+        int[] depths = {2, 3, 4};       // depth
 
         for (int threadPoolSize : threadPoolSizes) {
             for (int depth : depths) {

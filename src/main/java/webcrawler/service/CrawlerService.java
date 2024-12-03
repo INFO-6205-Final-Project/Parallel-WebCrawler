@@ -1,5 +1,6 @@
 package webcrawler.service;
 
+import edu.neu.coe.info6205.util.LazyLogger;
 import webcrawler.DTO.CrawlResultDTO;
 import webcrawler.util.HttpUtils;
 
@@ -14,6 +15,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 public class CrawlerService {
+    private static final LazyLogger logger = new LazyLogger(CrawlerService.class);
 
     private final Set<String> visitedUrls ;
     private final GraphService graphService ;
@@ -63,10 +65,12 @@ public class CrawlerService {
             }
 
 //            System.out.println("Found links: " + extractedUrls.size());
+//            logger.info("Found links: " + extractedUrls.size());
             data.setAllElements(url, title, crawlTime, extractedUrls);
 
         } catch (Exception e) {
 //            System.out.println("Failed to crawl URL: " + url + ", Error: " + e.getMessage());
+            logger.error("Failed to crawl URL: " + url + ", Error: " + e.getMessage());
         }
 
         return data;
@@ -148,6 +152,7 @@ public class CrawlerService {
 //            System.out.println("Stored data: " + fromURL + " -> " + toURL);
         } catch (Exception e) {
 //            System.err.println("Failed to store data: " + fromURL + " -> " + toURL + ", Error: " + e.getMessage());
+            logger.error("Failed to store data: " + fromURL + " -> " + toURL + ", Error: " + e.getMessage());
         }
     }
 }

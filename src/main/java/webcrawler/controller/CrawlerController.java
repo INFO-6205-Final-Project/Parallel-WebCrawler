@@ -50,39 +50,28 @@ public class CrawlerController {
 
     public static void main(String[] args) {
 
-//         CrawlerController controller = new CrawlerController(4, 3);
+        //thread num:4,5,6 ==> 16, 25, 36 threads
+        //depth: 2, 3, 4
+        Benchmark.benchmarkrun();
 
-//         // 测试爬虫任务
-//         Set<String> testUrls = Set.of(
-//                 "https://www.cfainstitute.org/insights/professional-learning"
-//         );
-//         controller.parallelCrawler.startCrawling(testUrls);
-
-
-//         System.out.println("Crawler stopped");
-
-
-
-
+        // test list function, if just need benchmark , comment bellow
+//        CrawlerController controller = new CrawlerController(5, 3);
 //
-//        // 测试爬虫任务
+//        // list URL
 //        Set<String> testUrls = Set.of(
 //                "https://www.cfainstitute.org/insights/professional-learning"
 //        );
 //        controller.parallelCrawler.startCrawling(testUrls);
 //
-        Benchmark.benchmarkrun();
-      
-        controller.crawlerService.pageRank();
-
-        //Out-degree
-        GraphRepository repository = new GraphRepository("bolt://localhost:7687", "neo4j", "12345678");
-        try {
-            repository.printNodeOutDegrees();
-        } finally {
-            repository.close();
-        }
-
-      
+//
+//        controller.crawlerService.pageRank();
+//
+//        //Out-degree
+//        GraphRepository repository = new GraphRepository("bolt://localhost:7687", "neo4j", "12345678");
+//        try {
+//            repository.printNodeOutDegrees();
+//        } finally {
+//            repository.close();
+//        }
     }
 }
